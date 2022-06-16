@@ -39,9 +39,17 @@ if (( COUNT > INPUT_KEEP_REPORTS )); then
 fi
 
 #echo "index.html"
-echo "<!DOCTYPE html><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"0; URL=${GITHUB_PAGES_WEBSITE_URL}/${INPUT_GITHUB_RUN_NUM}/\">" > ./${INPUT_PLAYWRIGHT_HISTORY}/index.html # path
-echo "<meta http-equiv=\"Pragma\" content=\"no-cache\"><meta http-equiv=\"Expires\" content=\"0\">" >> ./${INPUT_PLAYWRIGHT_HISTORY}/index.html
-#cat ./${INPUT_PLAYWRIGHT_HISTORY}/index.html
+# echo "<!DOCTYPE html><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"0; URL=${GITHUB_PAGES_WEBSITE_URL}/${INPUT_GITHUB_RUN_NUM}/\">" > ./${INPUT_PLAYWRIGHT_HISTORY}/index.html # path
+# echo "<meta http-equiv=\"Pragma\" content=\"no-cache\"><meta http-equiv=\"Expires\" content=\"0\">" >> ./${INPUT_PLAYWRIGHT_HISTORY}/index.html
+# #cat ./${INPUT_PLAYWRIGHT_HISTORY}/index.html
+
+cat index-template.html > index.html
+
+ls -l | grep "^d" | while read line;
+    do 
+        folder_name=awk '{print $2}';
+        awk '$1 == $line {print $2}';
+    done
 
 #echo "executor.json"
 echo '{"name":"GitHub Actions","type":"github","reportName":"Playwright Report with history",' > executor.json
