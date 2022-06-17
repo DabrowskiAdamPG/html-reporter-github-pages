@@ -45,11 +45,14 @@ fi
 
 cat index-template.html > index.html
 
+echo `├── <a href="./${INPUT_GITHUB_RUN_NUM}/index.html">Latest Test Results</a><br>` >> index.html;
 ls -l | grep "^d" | while read line;
     do 
-        folder_name=awk '{print $2}';
-        awk '$1 == $line {print $2}';
+        RUN_ID=$(`awk -v line="$line" '{print $9}'`);
+        echo "├── <a href=`"./${RUN_ID}/"`>RUN ID ${RUN_ID}</a><br>" >> index.html; 
     done
+echo "</html>" >> index.html    
+cat index.html
 
 #echo "executor.json"
 echo '{"name":"GitHub Actions","type":"github","reportName":"Playwright Report with history",' > executor.json
