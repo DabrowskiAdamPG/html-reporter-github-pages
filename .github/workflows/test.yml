@@ -1,0 +1,29 @@
+name: test
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Git Repo
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+          
+      - name: GH Pages Push
+        uses: PavanMudigonda/html-reporter-github-pages@v1.2
+        with:
+          test_results: test-results
+          keep_reports: 20
+          gh_pages: gh-pages # BRANCH NAME you like
+          subfolder: docs  # Level 1 Folder Structure you like
+          tool_name: cucumber # Level 2 Folder Structure you like
+          workflow_name: ${{ github.workflow }} # Level 3 Folder Structure you like
+          env: QA # Level 4 Folder Structure you like
