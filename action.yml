@@ -137,18 +137,19 @@ runs:
           exit 1
         fi
         
-        # Warn about external_repository usage
-        if [[ -n "${{ inputs.external_repository }}" ]]; then
-          echo "::warning::Using external_repository requires a Personal Access Token (PAT) with 'repo' scope."
-          echo '::warning::Make sure you provide: token: secrets.YOUR_GITHUB_PAT in your workflow file'
-          echo "::warning::The default GITHUB_TOKEN cannot push to external repositories."
+        # Error if external_repository is set but the default GITHUB_TOKEN is being used
+        if [[ -n "${{ inputs.external_repository }}" && "${{ inputs.token }}" == "${{ github.token }}" ]]; then
+          echo "::error::The default GITHUB_TOKEN cannot push to external repositories."
+          echo "::error::Make sure you provide: token: secrets.YOUR_GITHUB_PAT in your workflow file"
+          echo "::error::Using external_repository requires a Personal Access Token (PAT) with 'repo' scope."
+          exit 1
         fi
         
         echo "✅ All input validations passed"
         echo "::endgroup::"
     
     - name: Install GH CLI
-      uses: sersoft-gmbh/setup-gh-cli-action@v2.0.1
+      uses: sersoft-gmbh/setup-gh-cli-action@v3.0.0
       with:
         version: stable
         github-token: ${{ inputs.token }}
@@ -225,7 +226,7 @@ runs:
         
     - name: Get test results history
       if: ${{ inputs.external_repository == '' }}
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6
       continue-on-error: true
       with:
         ref: ${{ inputs.gh_pages }}
@@ -352,7 +353,7 @@ runs:
         fi;
         #-------------------------------------------------------------------
         # Use single index generator script with order parameter
-        INDEX_SCRIPT_PATH="${{ github.action_path }}/scripts/index-html-generator.py"
+        INDEX_SCRIPT_PATH="${GITHUB_ACTION_PATH}/scripts/index-html-generator.py"
         #-------------------------------------------------------------------
         delete_folders_func () {
           # Count only numeric run directories (not index.html, last-history, etc.)
@@ -643,7 +644,7 @@ runs:
 
     - name: Deploy report to Github Pages (Same Repository)
       if: ${{ inputs.external_repository == '' }}
-      uses: peaceiris/actions-gh-pages@v4.0.0
+      uses: peaceiris/actions-gh-pages@v4.1.0
       with:
         github_token: ${{ inputs.token }}
         force_orphan: ${{ inputs.force_orphan }}
@@ -655,7 +656,7 @@ runs:
 
     - name: Deploy report to Github Pages (External Repository)
       if: ${{ inputs.external_repository != '' }}
-      uses: peaceiris/actions-gh-pages@v4.0.0
+      uses: peaceiris/actions-gh-pages@v4.1.0
       with:
         personal_token: ${{ inputs.token }}
         publish_branch: ${{ inputs.gh_pages }}
