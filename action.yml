@@ -148,7 +148,7 @@ runs:
         echo "::endgroup::"
     
     - name: Install GH CLI
-      uses: sersoft-gmbh/setup-gh-cli-action@v2.0.1
+      uses: sersoft-gmbh/setup-gh-cli-action@v3.0.0
       with:
         version: stable
         github-token: ${{ inputs.token }}
@@ -159,6 +159,10 @@ runs:
       with:
         distribution: 'corretto'
         java-version: '17'
+
+    - name: Configure git safe directory
+      shell: bash
+      run: git config --global --add safe.directory '*'
 
     - name: Create a new gh pages branch if it doesn't exist - same repo
       if: ${{ inputs.external_repository == '' }}
@@ -225,7 +229,7 @@ runs:
         
     - name: Get test results history
       if: ${{ inputs.external_repository == '' }}
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6
       continue-on-error: true
       with:
         ref: ${{ inputs.gh_pages }}
@@ -352,7 +356,7 @@ runs:
         fi;
         #-------------------------------------------------------------------
         # Use single index generator script with order parameter
-        INDEX_SCRIPT_PATH="${{ github.action_path }}/scripts/index-html-generator.py"
+        INDEX_SCRIPT_PATH="${GITHUB_ACTION_PATH}/scripts/index-html-generator.py"
         #-------------------------------------------------------------------
         delete_folders_func () {
           # Count only numeric run directories (not index.html, last-history, etc.)
@@ -643,7 +647,7 @@ runs:
 
     - name: Deploy report to Github Pages (Same Repository)
       if: ${{ inputs.external_repository == '' }}
-      uses: peaceiris/actions-gh-pages@v4.0.0
+      uses: peaceiris/actions-gh-pages@v4.1.0
       with:
         github_token: ${{ inputs.token }}
         force_orphan: ${{ inputs.force_orphan }}
@@ -655,7 +659,7 @@ runs:
 
     - name: Deploy report to Github Pages (External Repository)
       if: ${{ inputs.external_repository != '' }}
-      uses: peaceiris/actions-gh-pages@v4.0.0
+      uses: peaceiris/actions-gh-pages@v4.1.0
       with:
         personal_token: ${{ inputs.token }}
         publish_branch: ${{ inputs.gh_pages }}
@@ -721,49 +725,29 @@ runs:
             echo "::notice::GitHub Pages configured successfully via API"
           fi;
         else
-          # GitHub Pages already exists - check its configuration
+          # GitHub Pages already exists — leave its configuration as-is.
+          # Changing source branch/path requires 'administration: write' which
+          # is not available to the GITHUB_TOKEN even with 'pages: write'.
           echo "GitHub Pages already configured"
           
-          # Check the build_type to determine if we should update
           if command -v jq &> /dev/null; then
-            BUILD_TYPE=$(jq -r '.build_type // ""' gh-pages.txt 2>/dev/null || echo "")
+            BUILD_TYPE=$(jq -r '.build_type // "unknown"' gh-pages.txt 2>/dev/null || echo "unknown")
+            SOURCE_BRANCH=$(jq -r '.source.branch // "unknown"' gh-pages.txt 2>/dev/null || echo "unknown")
+            SOURCE_DIR=$(jq -r '.source.path // "unknown"' gh-pages.txt 2>/dev/null || echo "unknown")
           else
-            BUILD_TYPE=$(awk -F'"' '/"build_type"/ {print $4}' gh-pages.txt 2>/dev/null || echo "")
+            BUILD_TYPE=$(awk -F'"' '/"build_type"/ {print $4}' gh-pages.txt 2>/dev/null || echo "unknown")
+            SOURCE_BRANCH=$(awk -F'"' '/"branch"/ {print $4}' gh-pages.txt 2>/dev/null || echo "unknown")
+            SOURCE_DIR=$(awk -F'"' '/"path"/ {print $4}' gh-pages.txt 2>/dev/null || echo "unknown")
           fi
           
-          echo "Detected deployment method: ${BUILD_TYPE:-unknown}"
+          echo "Detected deployment method: ${BUILD_TYPE}"
+          echo "Serving from branch '${SOURCE_BRANCH}' at path '${SOURCE_DIR}'"
           
           if [ "$BUILD_TYPE" = "workflow" ]; then
-            echo "::notice::GitHub Pages is using 'GitHub Actions' deployment method"
-            echo "::notice::Source branch configuration is not applicable for Actions deployments"
-            echo "::notice::Your deployment was successful via peaceiris/actions-gh-pages"
-          elif [ "$BUILD_TYPE" = "legacy" ]; then
-            echo "Updating GitHub Pages source branch configuration..."
-            gh api \
-              --method PUT \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "/repos/${PAGES_REPO}/pages" \
-               -f "source[branch]=${GH_PAGES_BRANCH}" -f "source[path]=${SOURCE_PATH}" --silent > gh-pages-site.json 2>&1 || true;
-            
-            GH_SITE_UPDATE_MESSAGE=$(cat gh-pages-site.json | xargs)
-            if echo "${GH_SITE_UPDATE_MESSAGE}" | grep -q 'gh: Not Found (HTTP 404)'; then
-              echo "::warning::API call to update GitHub Pages site failed (404). The site should still work if already configured."
-            elif echo "${GH_SITE_UPDATE_MESSAGE}" | grep -q 'gh: Resource not accessible'; then
-              echo "::warning::API call to update GitHub Pages site failed (403 - Insufficient permissions)."
-              if [[ "${IS_EXTERNAL}" == "true" ]]; then
-                echo "::warning::For external repositories, ensure your PAT has 'repo' and 'pages: write' scopes."
-              else
-                echo "::warning::To fix this, add 'pages: write' permission to your workflow."
-              fi
-              echo "::notice::Your deployment was successful, but source branch settings were not updated"
-            else
-              echo "::notice::GitHub Pages source branch updated successfully"
-            fi
+            echo "::notice::GitHub Pages uses GitHub Actions deployment — no branch source update needed"
           else
-            echo "::notice::GitHub Pages deployment method is unknown or not detected"
-            echo "::notice::Your content has been deployed successfully via peaceiris/actions-gh-pages"
-            echo "::notice::If this is the first deployment, you may need to manually enable GitHub Pages in Settings → Pages"
+            echo "::notice::GitHub Pages source branch settings are managed by the repository admin."
+            echo "::notice::If reports are not visible, ensure Pages is configured to serve from branch '${GH_PAGES_BRANCH}' at path '${SOURCE_PATH}' in Settings → Pages."
           fi
         fi;
         
